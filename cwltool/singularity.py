@@ -106,9 +106,19 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
             if "dockerPull" in dockerRequirement:
-                cmd = ["singularity", "pull", "--force", "--name",
-                       str(dockerRequirement["dockerImageId"]),
-                       str(dockerRequirement["dockerPull"])]
+                # check singularity version
+                get_version_cmd = ["singularity", "--version"]
+                if check_output(get_version_cmd) == 'singularity version v3.0.0\n':
+                    # Singularity 3
+                    singularity_image_path = os.path.join(str(os.environ['SINGULARITY_PULLFOLDER']), str(dockerRequirement["dockerImageId"]))
+                    cmd = ["singularity", "build",
+                           singularity_image_path,
+                           str(dockerRequirement["dockerPull"])]
+                else:
+                    # Singularity 2
+                    cmd = ["singularity", "pull", "--force", "--name",
+                           str(dockerRequirement["dockerImageId"]),
+                           str(dockerRequirement["dockerPull"])]
                 _logger.info(Text(cmd))
                 check_call(cmd, stdout=sys.stderr)
                 found = True
@@ -148,6 +158,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if not self.get_image(r, pull_image, force_pull):
             raise WorkflowException(u"Container image {} not "
                                     "found".format(r["dockerImageId"]))
+
+        if os.environ['SINGULARITY_PULLFOLDER']:
+            return os.path.join(os.environ['SINGULARITY_PULLFOLDER'], r["dockerImageId"])
 
         return os.path.abspath(r["dockerImageId"])
 
