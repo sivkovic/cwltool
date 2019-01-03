@@ -110,7 +110,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                 get_version_cmd = ["singularity", "--version"]
                 if check_output(get_version_cmd) == 'singularity version v3.0.0\n':
                     # Singularity 3
-                    singularity_image_path = os.path.join(str(os.environ['SINGULARITY_PULLFOLDER']), str(dockerRequirement["dockerImageId"]))
+                    singularity_image_path = os.path.join(str(os.environ['SINGULARITY_PULLFOLDER']),
+                                                          str(dockerRequirement["dockerImageId"])) if os.environ.get(
+                        'SINGULARITY_PULLFOLDER') else str(dockerRequirement["dockerImageId"])
                     cmd = ["singularity", "build",
                            singularity_image_path,
                            str(dockerRequirement["dockerPull"])]
@@ -159,7 +161,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
             raise WorkflowException(u"Container image {} not "
                                     "found".format(r["dockerImageId"]))
 
-        if os.environ['SINGULARITY_PULLFOLDER']:
+        if os.environ.get('SINGULARITY_PULLFOLDER'):
             return os.path.join(os.environ['SINGULARITY_PULLFOLDER'], r["dockerImageId"])
 
         return os.path.abspath(r["dockerImageId"])
