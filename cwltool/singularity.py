@@ -98,9 +98,20 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         if (force_pull or not found) and pull_image:
             cmd = []  # type: List[Text]
             if "dockerPull" in dockerRequirement:
-                cmd = ["singularity", "pull", "--force", "--name",
-                       str(dockerRequirement["dockerImageId"]),
-                       str(dockerRequirement["dockerPull"])]
+
+                get_version_cmd = ["singularity", "--version"]
+                if check_output(get_version_cmd) == 'singularity version v3.0.0\n':
+                    # Singularity 3
+                    singularity_image_path = os.path.join(str(os.environ['SINGULARITY_PULLFOLDER']),
+                                                          str(dockerRequirement["dockerImageId"])) if os.environ.get(
+                        'SINGULARITY_PULLFOLDER') else str(dockerRequirement["dockerImageId"])
+                    cmd = ["singularity", "build",
+                           singularity_image_path,
+                           str(dockerRequirement["dockerPull"])]
+                else:
+                    cmd = ["singularity", "pull", "--force", "--name",
+                           str(dockerRequirement["dockerImageId"]),
+                           str(dockerRequirement["dockerPull"])]
                 _logger.info(Text(cmd))
                 check_call(cmd, stdout=sys.stderr)
                 found = True
@@ -149,6 +160,9 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
                     raise WorkflowException(errmsg)
                 else:
                     return None
+
+            if os.environ.get('SINGULARITY_PULLFOLDER'):
+                return os.path.join(os.environ['SINGULARITY_PULLFOLDER'], r["dockerImageId"])
 
             if self.get_image(r, pull_image, force_pull):
                 return os.path.abspath(r["dockerImageId"])
@@ -236,7 +250,7 @@ class SingularityCommandLineJob(ContainerCommandLineJob):
         runtime.append(u"--pwd")
         runtime.append("%s" % (docker_windows_path_adjust(self.builder.outdir)))
 
-        if runtimeContext.custom_net is not None:
+        if runtimeContext.custom_net:
             raise UnsupportedRequirement(
                 "Singularity implementation does not support custom networking")
         elif runtimeContext.disable_net:
